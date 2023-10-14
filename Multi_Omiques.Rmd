@@ -12,22 +12,19 @@ rm(list=ls())
 
 #Lecture des données
 ```{r}
-path <- '/Users/cassandragbaboua/M2_BI/Multi-omiques/'
-data_pregnancy <- readRDS(paste0(path,'data_pregnancy.Rds'))
+data_pregnancy <- readRDS("/home/etudiant/Téléchargements/data_pregnancy.Rds")
 ```
 
 #Visualisation des données
 ```{r}
 head(data_pregnancy)
-summary(data_pregnancy)
-str(data_pregnancy)
-```
-#Traitement des NA
-```{r}
-is.na(data_pregnancy)
 ```
 
-#Dissociation des datas
+
+```{r}
+summary(data_pregnancy)
+```
+
 ```{r}
 RNA_data <- data.frame(data_pregnancy['RNA'])
 protein_data <- data.frame(data_pregnancy['protein'])
@@ -36,23 +33,291 @@ sample_info <- data.frame(data_pregnancy['sample_info'])
 ```
 
 #Informations sur le nombre de sujets/echantillons et sur les différentes classes
+
 ```{r}
 nb_sujets = length(unique(sample_info$sample_info.sample))
 nb_classes = length(unique(sample_info$sample_info.Y))
 sprintf("Nombre d'id unique, donc, nombre de femmes intérogées : %s ",nb_sujets) 
 sprintf("Nombre de classes : %s ",nb_classes) 
 ```
-
-
 ```{r}
 boxplot(protein_data,las=2,cex.axis=0.8)
 boxplot(cyto_data,las=2,cex.axis=0.8)
 #boxplot(RNA_data)
 ```
+
 ```{r}
 apply(cyto_data,2,mean)
 apply(RNA_data,2,mean)
 apply(protein_data,1,mean)
+```
+
+
+Preprocessing
+
+```{r}
+
+# Charger les bibliothèques
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(caret)
+
+```
+
+
+```{r}
+# Extraction des informations des noms de lignes
+RNA_data <- RNA_data %>%
+  rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
+  separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
+```
+
+```{r}
+# Extraction des informations des noms de lignes
+protein_data <- protein_data %>%
+  rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
+  separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
+```
+
+```{r}
+# Extraction des informations des noms de lignes
+cyto_data <- cyto_data %>%
+  rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
+  separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
+```
+
+
+
+```{r}
+ggplot(RNA_data, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Barplot de la Feature en fonction des Individus",
+       x = "Individu (Échantillon)",
+       y = "Valeur de la Feature")
+
+```
+
+
+```{r}
+ggplot(RNA_data, aes(x = Classe , y = RNA.ENSG00000000003)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Barplot de la Feature en fonction des classes",
+       x = "Individu (Échantillon)",
+       y = "Valeur de la Feature")
+
+```
+
+POUR LES CYTOKINES
+
+^
+```{r}
+boxplot(cyto_data[-c(1,2)])
+```
+On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. On visualise à nouveau le boxplot sur les données normalisées ci-dessous. 
+```{r}
+boxplot(scale(cyto_data[-c(1,2)]))
+```
+
+
+
+Recherche des variables à variance nulle
+
+```{r}
+apply(cyto_data, FUN=var, MARGIN = 2)
+
+```
+pas de variance nulle
+
+
+
+
+
+```{r}
+cyto_data2 = data.frame(scale(cyto_data[-c(1,2)]))
+```
+
+
+Corrélations
+
+
+```{r}
+corr=cor(cyto_data2)
+corrplot::corrplot(corr)
+```
+
+
+
+```{r}
+findCorrelation(corr, cutoff = 0.90, names=T)
+del<-findCorrelation(corr, cutoff = 0.90, names=T)
+cyto_data2<- cyto_data2 %>% select(-one_of(del))
+```
+
+
+Colinéarité
+
+```{r}
+findLinearCombos(cyto_data2[-c(1,2)])
+```
+PAS DE COLINEARITÉ
+
+
+
+POUR LES PROTEINES
+
+^
+```{r}
+boxplot(protein_data[-c(1,2)])
+```
+On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. On visualise à nouveau le boxplot sur les données normalisées ci-dessous. 
+```{r}
+boxplot(scale(protein_data[-c(1,2)]))
+```
+
+
+
+Recherche des variables à variance nulle
+
+```{r}
+which(apply(protein_data, FUN=var, MARGIN = 2)==0)
+
+```
+pas de variance nulle
+
+
+
+
+
+```{r}
+protein_data2 = data.frame(scale(protein_data[-c(1,2)]))
+```
+
+
+Corrélations
+
+
+```{r}
+corr=cor(protein_data2)
+#corrplot::corrplot(corr)
+```
+
+
+
+```{r}
+findCorrelation(corr, cutoff = 0.90, names=T)
+del<-findCorrelation(corr, cutoff = 0.90, names=T)
+protein_data2<- protein_data2 %>% select(-one_of(del))
+```
+
+
+Colinéarité
+
+```{r}
+protein_data2<- protein_data2[,-c(findLinearCombos(protein_data2)$remove)]
+```
+
+il nous reste 64 protéines au final
+
+
+
+
+
+POUR LES ARN
+
+^
+```{r}
+#boxplot(RNA_data[-c(1,2)])
+```
+
+```{r}
+#boxplot(scale(RNA_data[-c(1,2)]))
+```
+
+
+
+Recherche des variables à variance nulle
+
+```{r}
+RNA_data<- RNA_data[,-which(apply(RNA_data, FUN=var, MARGIN = 2)==0)]
+
+```
+
+-62 variables a variance nulle
+
+```{r}
+RNA_data2 = data.frame(scale(RNA_data[-c(1,2)]))
+```
+
+
+Corrélations
+
+
+```{r}
+corr=cor(RNA_data2)
+#corrplot::corrplot(corr)
+```
+
+
+
+```{r}
+
+del<-findCorrelation(corr, cutoff = 0.90, names=T)
+RNA_data2<- RNA_data2 %>% select(-one_of(del))
+```
+Il reste 12075 ARN a ce stade
+
+Colinéarité
+
+```{r}
+RNA_data2<- RNA_data2[,-c(findLinearCombos(RNA_data2)$remove)]
+```
+
+il nous reste 60 ARN au final
+
+
+
+Quels sont les gènes les plus variants ? les protéines ? Quels sont leurs rôles biologiques ?
+
+
+
+
+```{r}
+RNA_data_filtered<- RNA_data %>% select(one_of(colnames(RNA_data2)))
+
+```
+
+
+```{r}
+
+sort(apply(RNA_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
+```
+lE GENE LE PLUS VARIANT EST RNA.ENSG00000107372
+C'est le gène ZFAND5 :  Predicted to enable DNA binding activity and zinc ion binding activity. Predicted to act upstream of or within several processes, including face development; fibroblast migration; and platelet-derived growth factor receptor signaling pathway. Predicted to be located in cytoplasm. 
+
+
+```{r}
+protein_data_filtered<- protein_data %>% select(one_of(colnames(protein_data2)))
+
+```
+
+
+```{r}
+
+sort(apply(protein_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
+
+```
+
+
+
+##ACP
+
+
+```{r}
+pca_cyto <- mixOmics::pca(cyto_data2)
+
+mixOmics::plotIndiv(pca_cyto,comp=c(1,3))
+mixOmics::plotVar(pca_cyto)
 ```
 
 
