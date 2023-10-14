@@ -1,0 +1,58 @@
+---
+title: "Multi-omiques"
+author: "Cassandra"
+date: "2023-10-13"
+output: html_document
+---
+
+#Purge de l'environnement
+```{r}
+rm(list=ls())
+```
+
+#Lecture des données
+```{r}
+path <- '/Users/cassandragbaboua/M2_BI/Multi-omiques/'
+data_pregnancy <- readRDS(paste0(path,'data_pregnancy.Rds'))
+```
+
+#Visualisation des données
+```{r}
+head(data_pregnancy)
+summary(data_pregnancy)
+str(data_pregnancy)
+```
+#Traitement des NA
+```{r}
+is.na(data_pregnancy)
+```
+
+#Dissociation des datas
+```{r}
+RNA_data <- data.frame(data_pregnancy['RNA'])
+protein_data <- data.frame(data_pregnancy['protein'])
+cyto_data <- data.frame(data_pregnancy['cyto'])
+sample_info <- data.frame(data_pregnancy['sample_info'])
+```
+
+#Informations sur le nombre de sujets/echantillons et sur les différentes classes
+```{r}
+nb_sujets = length(unique(sample_info$sample_info.sample))
+nb_classes = length(unique(sample_info$sample_info.Y))
+sprintf("Nombre d'id unique, donc, nombre de femmes intérogées : %s ",nb_sujets) 
+sprintf("Nombre de classes : %s ",nb_classes) 
+```
+
+
+```{r}
+boxplot(protein_data,las=2,cex.axis=0.8)
+boxplot(cyto_data,las=2,cex.axis=0.8)
+#boxplot(RNA_data)
+```
+```{r}
+apply(cyto_data,2,mean)
+apply(RNA_data,2,mean)
+apply(protein_data,1,mean)
+```
+
+
