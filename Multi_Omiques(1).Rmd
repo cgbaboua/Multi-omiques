@@ -1,7 +1,7 @@
 ---
-title: "Multi-omiques"
-author: "Cassandra"
-date: "2023-10-13"
+title: "Omique"
+author: "Inès"
+date: "2023-10-15"
 output: html_document
 ---
 
@@ -12,7 +12,7 @@ rm(list=ls())
 
 #Lecture des données
 ```{r}
-data_pregnancy <- readRDS("/home/etudiant/Téléchargements/data_pregnancy.Rds")
+data_pregnancy <- readRDS("C:/Users/Bismilah/Desktop/M1-IPFB/M2_BI/Omique _Antoine/Paris-diderot-m2-2023/data/data_pregnancy.Rds")
 ```
 
 #Visualisation des données
@@ -68,7 +68,7 @@ library(corrplot)
 library(igraph)
 library(gprofiler2)
 library(org.Hs.eg.db)
-library(rgl)
+# library(rgl)
 ```
 
 
@@ -650,4 +650,61 @@ plotLoadings(C, ncomp = 1)
 ```{r}
 circosPlot(result.sparse.diablo,cutoff = 0.5, style = 'graphics')
 ```
+
+
+
+
+## Réseaux de régulation de gène GRN 
+
+
+```{r}
+g <- igraph::graph_from_data_frame(RNA_data)
+plot(g)
+```
+```{r}
+RNA_data <- data.frame(RNA_data)
+```
+
+```{r}
+grn <- netOmics::get_grn(RNA_data$raw$RNA)
+```
+
+
+# number of vertices
+
+```{r}
+vcount(g)
+```
+
+# number of edges
+```{r}
+ecount(g) 
+```
+
+
+```{r}
+deg <- degree(g)
+hist(deg)
+```
+
+# Vertex name
+
+```{r}
+V(g)$name
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+
+
+
 
