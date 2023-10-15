@@ -1,0 +1,653 @@
+---
+title: "Multi-omiques"
+author: "Cassandra"
+date: "2023-10-13"
+output: html_document
+---
+
+#Purge de l'environnement
+```{r}
+rm(list=ls())
+```
+
+#Lecture des données
+```{r}
+data_pregnancy <- readRDS("/home/etudiant/Téléchargements/data_pregnancy.Rds")
+```
+
+#Visualisation des données
+```{r}
+head(data_pregnancy)
+```
+
+
+```{r}
+summary(data_pregnancy)
+```
+
+```{r}
+RNA_data <- data.frame(data_pregnancy['RNA'])
+protein_data <- data.frame(data_pregnancy['protein'])
+cyto_data <- data.frame(data_pregnancy['cyto'])
+sample_info <- data.frame(data_pregnancy['sample_info'])
+```
+
+#Informations sur le nombre de sujets/echantillons et sur les différentes classes
+
+```{r}
+nb_sujets = length(unique(sample_info$sample_info.sample))
+nb_classes = length(unique(sample_info$sample_info.Y))
+sprintf("Nombre d'id unique, donc, nombre de femmes intérogées : %s ",nb_sujets) 
+sprintf("Nombre de classes : %s ",nb_classes) 
+```
+```{r}
+boxplot(protein_data,las=2,cex.axis=0.8)
+boxplot(cyto_data,las=2,cex.axis=0.8)
+#boxplot(RNA_data)
+```
+
+```{r}
+apply(cyto_data,2,mean)
+apply(RNA_data,2,mean)
+apply(protein_data,2,mean)
+```
+
+
+Preprocessing
+
+```{r}
+# Charger les bibliothèques
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(mixOmics)
+library(netOmics)
+library(BiocGenerics)
+library(corrplot)
+library(igraph)
+library(gprofiler2)
+library(org.Hs.eg.db)
+library(rgl)
+```
+
+
+```{r}
+# Extraction des informations des noms de lignes
+RNA_data <- RNA_data %>%
+  rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
+  separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
+```
+
+```{r}
+# Extraction des informations des noms de lignes
+protein_data <- protein_data %>%
+  rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
+  separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
+```
+
+```{r}
+# Extraction des informations des noms de lignes
+cyto_data <- cyto_data %>%
+  rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
+  separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
+```
+
+
+
+```{r}
+ggplot(RNA_data, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Barplot de la Feature en fonction des Individus",
+       x = "Individu (Échantillon)",
+       y = "Valeur de la Feature")
+
+```
+
+
+```{r}
+ggplot(RNA_data, aes(x = Classe , y = RNA.ENSG00000000003)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Barplot de la Feature en fonction des classes",
+       x = "Individu (Échantillon)",
+       y = "Valeur de la Feature")
+
+```
+
+POUR LES CYTOKINES
+
+
+```{r}
+boxplot(cyto_data[-c(1,2)])
+```
+On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. On visualise à nouveau le boxplot sur les données normalisées ci-dessous. 
+```{r}
+boxplot(scale(cyto_data[-c(1,2)]))
+```
+
+
+
+Recherche des variables à variance nulle
+
+```{r}
+apply(cyto_data, FUN=var, MARGIN = 2)
+
+```
+pas de variance nulle
+
+
+
+```{r}
+cyto_data2 = data.frame(scale(cyto_data[-c(1,2)]))
+```
+
+
+Corrélations
+
+
+```{r}
+corr=cor(cyto_data2)
+corrplot::corrplot(corr)
+```
+
+
+
+```{r}
+findCorrelation(corr, cutoff = 0.90, names=T)
+del<-findCorrelation(corr, cutoff = 0.90, names=T)
+cyto_data2<- cyto_data2 %>% select(-one_of(del))
+```
+
+
+Colinéarité
+
+```{r}
+findLinearCombos(cyto_data2[-c(1,2)])
+```
+PAS DE COLINEARITÉ
+
+
+
+POUR LES PROTEINES
+
+^
+```{r}
+boxplot(protein_data[-c(1,2)])
+```
+On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. On visualise à nouveau le boxplot sur les données normalisées ci-dessous. 
+```{r}
+boxplot(scale(protein_data[-c(1,2)]))
+```
+
+
+
+Recherche des variables à variance nulle
+
+```{r}
+which(apply(protein_data, FUN=var, MARGIN = 2)==0)
+
+```
+pas de variance nulle
+
+
+
+
+
+```{r}
+protein_data2 = data.frame(scale(protein_data[-c(1,2)]))
+```
+
+
+Corrélations
+
+
+```{r}
+corr=cor(protein_data2)
+#corrplot::corrplot(corr)
+```
+
+
+
+```{r}
+findCorrelation(corr, cutoff = 0.90, names=T)
+del<-findCorrelation(corr, cutoff = 0.90, names=T)
+protein_data2<- protein_data2 %>% select(-one_of(del))
+```
+
+
+Colinéarité
+
+```{r}
+protein_data2<- protein_data2[,-c(findLinearCombos(protein_data2)$remove)]
+```
+
+il nous reste 64 protéines au final
+
+
+
+
+
+POUR LES ARN
+
+^
+```{r}
+#boxplot(RNA_data[-c(1,2)])
+```
+
+```{r}
+#boxplot(scale(RNA_data[-c(1,2)]))
+```
+
+
+
+Recherche des variables à variance nulle
+
+```{r}
+RNA_data<- RNA_data[,-which(apply(RNA_data, FUN=var, MARGIN = 2)==0)]
+
+```
+
+-62 variables a variance nulle
+
+```{r}
+RNA_data2 = data.frame(scale(RNA_data[-c(1,2)]))
+```
+
+
+Corrélations
+
+
+```{r}
+corr=cor(RNA_data2)
+#corrplot::corrplot(corr)
+```
+
+
+
+```{r}
+del<-findCorrelation(corr, cutoff = 0.90, names=T)
+RNA_data2<- RNA_data2 %>% select(-one_of(del))
+```
+Il reste 12075 ARN a ce stade
+
+#Colinéarité
+
+```{r}
+RNA_data2<- RNA_data2[,-c(findLinearCombos(RNA_data2)$remove)]
+```
+
+il nous reste 60 ARN au final
+
+
+
+Quels sont les gènes les plus variants ? les protéines ? Quels sont leurs rôles biologiques ?
+
+
+
+
+```{r}
+RNA_data_filtered<- RNA_data %>% select(one_of(colnames(RNA_data2)))
+
+```
+
+
+```{r}
+
+sort(apply(RNA_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
+```
+lE GENE LE PLUS VARIANT EST RNA.ENSG00000107372
+C'est le gène ZFAND5 :  Predicted to enable DNA binding activity and zinc ion binding activity. Predicted to act upstream of or within several processes, including face development; fibroblast migration; and platelet-derived growth factor receptor signaling pathway. Predicted to be located in cytoplasm. 
+
+
+```{r}
+protein_data_filtered<- protein_data %>% select(one_of(colnames(protein_data2)))
+cyto_data_filtered<- cyto_data %>% select(one_of(colnames(cyto_data2)))
+
+```
+
+
+```{r}
+
+sort(apply(protein_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
+
+```
+
+
+
+##ACP pour cytokynes
+
+```{r}
+pca_cyto <- mixOmics::pca(cyto_data_filtered,ncomp = 10,scale=TRUE) #nrmlmt option scale=TRUE mais tu as déjà scale plus haut
+plot(pca_cyto)
+
+# Proportions cumulées de la variance pour décider combien de composantes conserver
+pca_cyto$cum.var
+
+#Pca en conservant que 5 composantes
+final.pca_cyto <- mixOmics::pca(cyto_data_filtered, ncomp = 5, center = TRUE, scale=TRUE) 
+
+# Affichez la proportion de variance expliquée pour chaque composante
+final.pca_cyto$prop_expl_var$X
+
+# Affichez la variance totale
+final.pca_cyto$var.tot
+
+# Proportion cumulée de variance expliquée
+final.pca_cyto$cum.var
+
+
+mixOmics::plotIndiv(final.pca_cyto,
+                    comp = c(1, 2),   
+                    ind.names = TRUE, cex=3, group = cyto_data$Classe) # Montrez les noms des échantillons
+
+# Voir la troisième composante
+mixOmics::plotIndiv(final.pca_cyto, style = '3d')
+
+#Ccorrelation circle plot
+mixOmics::plotVar(final.pca_cyto,cex=3)
+```
+
+## ACP pour protéines
+
+```{r}
+# Effectuer l'ACP sur les données protéine_data avec 10 composantes
+pca_protein <- mixOmics::pca(protein_data_filtered, ncomp = 10,scale=T) 
+
+# Afficher le graphique de l'ACP
+plot(pca_protein)
+
+# Proportions cumulées de la variance pour décider combien de composantes conserver
+pca_protein$cum.var
+
+# ACP en conservant seulement 5 composantes
+final.pca_protein <- mixOmics::pca(protein_data_filtered, ncomp = 5, center = TRUE,scale=T) 
+
+# Affichez la proportion de variance expliquée pour chaque composante
+final.pca_protein$prop_expl_var$X
+
+# Affichez la variance totale
+final.pca_protein$var.tot
+
+# Proportion cumulée de variance expliquée
+final.pca_protein$cum.var
+
+# Affichage des échantillons dans l'espace des composantes 1 et 2
+mixOmics::plotIndiv(final.pca_protein,
+                    comp = c(1, 2),   #A modifier
+                    ind.names = TRUE,cex=3, group=protein_data$Classe) # Montrez les noms des échantillons
+
+# Visualisation 3D pour voir la troisième composante
+mixOmics::plotIndiv(final.pca_protein, style = '3d')
+
+# Correlation circle plot pour les variables de proteine_data
+mixOmics::plotVar(final.pca_protein,cex=3)
+```
+
+## ACP pour RNA
+
+```{r}
+# Réalisation de l'ACP pour les données RNA
+pca_rna <- mixOmics::pca(RNA_data_filtered, ncomp = 10, scale=T)
+plot(pca_rna)
+
+# Proportions cumulées de la variance pour décider combien de composantes conserver
+pca_rna$cum.var
+
+# Réalisation de l'ACP en conservant seulement 5 composantes pour les données RNA
+final.pca_rna <- mixOmics::pca(RNA_data_filtered, ncomp = 5, center = TRUE, scale=T) 
+
+# Affichage de la proportion de variance expliquée pour chaque composante
+final.pca_rna$prop_expl_var$X
+
+# Affichage de la variance totale
+final.pca_rna$var.tot
+
+# Proportion cumulée de variance expliquée
+final.pca_rna$cum.var
+
+# Visualisation des échantillons dans l'espace des composantes 1 et 3
+mixOmics::plotIndiv(final.pca_rna,
+                    comp = c(1, 2),   #A modifier
+                    ind.names = TRUE,cex=3, group=RNA_data$Classe) # Montrez les noms des échantillons
+
+# Visualisation 3D des trois premières composantes
+mixOmics::plotIndiv(final.pca_rna, style = '3d')
+
+# Correlation circle plot pour les variables
+mixOmics::plotVar(final.pca_rna,cex=3)
+```
+
+
+##SPCA sur cytokines
+
+```{r}
+
+
+# Définir les paramètres sPCA
+nselect1 <- 10  # Nombre de features à sélectionner sur la première composante
+nselect2 <- 5   # Nombre de features à sélectionner sur la deuxième composante
+
+# Effectuer une analyse sPCA
+spca_cyto <- spca(cyto_data_filtered,scale=T, keepX = c(nselect1,nselect2))
+
+plotVar(spca_cyto,cex=3)
+plotIndiv(spca_cyto,cex=3, group=cyto_data$Classe)
+
+```
+
+sur la première composante 
+
+```{r}
+# extract the variables used to construct the first PC
+selectVar(spca_cyto, comp  =1)$name 
+```
+
+sur la deuxième composante 
+
+```{r}
+# extract the variables used to construct the first PC
+selectVar(spca_cyto, comp  =2)$name 
+```
+
+
+
+##SPCA sur proteines
+
+```{r}
+
+
+# Définir les paramètres sPCA
+nselect1 <- 10  # Nombre de features à sélectionner sur la première composante
+nselect2 <- 5   # Nombre de features à sélectionner sur la deuxième composante
+
+# Effectuer une analyse sPCA
+spca_protein <- spca(protein_data_filtered, scale=T, keepX = c(nselect1,nselect2))
+
+plotVar(spca_protein,cex=3)
+
+plotIndiv(spca_protein,cex=3, group=protein_data$Classe)
+
+```
+
+sur la première composante 
+
+```{r}
+# extract the variables used to construct the first PC
+selectVar(spca_protein, comp  =1)$name 
+```
+
+sur la deuxième composante 
+
+```{r}
+# extract the variables used to construct the first PC
+selectVar(spca_protein, comp  =2)$name 
+```
+
+
+
+##SPCA sur ARN
+
+```{r}
+
+
+# Définir les paramètres sPCA
+nselect1 <- 10  # Nombre de features à sélectionner sur la première composante
+nselect2 <- 5   # Nombre de features à sélectionner sur la deuxième composante
+
+# Effectuer une analyse sPCA
+spca_RNA <- spca(RNA_data_filtered,scale=T, keepX = c(nselect1,nselect2))
+plotVar(spca_RNA,cex=3)
+
+plotIndiv(spca_RNA,cex=3, group=RNA_data$Classe)
+```
+
+sur la première composante 
+
+```{r}
+# extract the variables used to construct the first PC
+selectVar(spca_RNA, comp  =1)$name 
+```
+
+sur la deuxième composante 
+
+```{r}
+# extract the variables used to construct the first PC
+selectVar(spca_RNA, comp  =2)$name 
+```
+
+
+
+##PLSDA
+
+cytokines 
+
+```{r}
+X <- cyto_data_filtered 
+Y <- cyto_data$Classe
+```
+
+
+```{r}
+plsda_cyto <- plsda(X, Y, scale=T) 
+plotIndiv(plsda_cyto) 
+plotVar(plsda_cyto,cex=3) 
+```
+
+proteines 
+
+```{r}
+X <- protein_data_filtered 
+Y <- protein_data$Classe
+```
+
+
+```{r}
+plsda_protein <- plsda(X, Y, scale=T) 
+plotIndiv(plsda_protein) 
+plotVar(plsda_protein,cex=3) 
+```
+
+
+
+RNA 
+
+```{r}
+X <- RNA_data_filtered 
+Y <- RNA_data$Classe
+```
+
+
+```{r}
+plsda_RNA <- plsda(X, Y, scale=T) 
+plotIndiv(plsda_RNA) 
+plotVar(plsda_RNA,cex=3) 
+```
+
+
+###ANALYSE D'INTEGRATION
+
+## PLS
+
+```{r}
+X1 <- RNA_data_filtered 
+X2 <- protein_data_filtered
+```
+
+```{r}
+pls.gp <- pls(X = X1, Y = X2)
+pls.gp
+```
+```{r}
+plotIndiv(pls.gp)
+plotVar(pls.gp, cex=c(3,3))
+plotArrow(pls.gp)
+```
+
+
+```{r}
+pls.perf <- perf(pls.gp, validation = "loo")
+pls.perf
+  
+```
+```{r}
+pls.perf$measures$Q2.total
+```
+
+
+
+#sPLS
+```{r}
+spls.gp <- spls(X = X1, Y = X2, ncomp = 2, keepX = c(10,5), keepY = c(10, 5))
+spls.gp
+```
+```{r}
+plotIndiv(spls.gp)
+plotVar(spls.gp)
+plotArrow(spls.gp)
+```
+
+Variables retenus chez les genes
+```{r}
+selectVar(spls.gp,comp=1)$X
+selectVar(spls.gp,comp=2)$X
+
+```
+
+Variables retenus chez les prot
+```{r}
+selectVar(spls.gp,comp=1)$Y
+selectVar(spls.gp,comp=2)$Y
+
+```
+
+
+##DIABLO
+
+```{r}
+X1 <- RNA_data_filtered 
+X2 <- protein_data_filtered
+X3 <- cyto_data_filtered
+X <- list(rna = X1, protein = X2, cyto= X3)
+
+Y <- cyto_data$Classe
+```
+
+```{r}
+result.diablo <- block.plsda(X, Y) # run the method
+plotIndiv(result.diablo) # plot the samples
+plotVar(result.diablo)
+```
+
+```{r}
+list.keepX = list(rna = c(15, 10), protein = c(15,5), cyto = c(15, 5)) 
+result.sparse.diablo <- block.splsda(X, Y,keepX=list.keepX , ncomp=2) # run the method
+plotIndiv(result.sparse.diablo) # plot the samples
+plotVar(result.sparse.diablo,cex=c(3,3,3))
+```
+```{r}
+plotLoadings(C, ncomp = 1) 
+```
+```{r}
+circosPlot(result.sparse.diablo,cutoff = 0.5, style = 'graphics')
+```
+
