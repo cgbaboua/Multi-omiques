@@ -49,20 +49,26 @@ boxplot(cyto_data,las=2,cex.axis=0.8)
 ```{r}
 apply(cyto_data,2,mean)
 apply(RNA_data,2,mean)
-apply(protein_data,1,mean)
+apply(protein_data,2,mean)
 ```
 
 
 Preprocessing
 
 ```{r}
-
 # Charger les bibliothèques
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(caret)
-
+library(mixOmics)
+library(netOmics)
+library(BiocGenerics)
+library(corrplot)
+library(igraph)
+library(gprofiler2)
+library(org.Hs.eg.db)
+library(rgl)
 ```
 
 
@@ -110,7 +116,7 @@ ggplot(RNA_data, aes(x = Classe , y = RNA.ENSG00000000003)) +
 
 POUR LES CYTOKINES
 
-^
+
 ```{r}
 boxplot(cyto_data[-c(1,2)])
 ```
@@ -128,8 +134,6 @@ apply(cyto_data, FUN=var, MARGIN = 2)
 
 ```
 pas de variance nulle
-
-
 
 
 
@@ -261,13 +265,12 @@ corr=cor(RNA_data2)
 
 
 ```{r}
-
 del<-findCorrelation(corr, cutoff = 0.90, names=T)
 RNA_data2<- RNA_data2 %>% select(-one_of(del))
 ```
 Il reste 12075 ARN a ce stade
 
-Colinéarité
+#Colinéarité
 
 ```{r}
 RNA_data2<- RNA_data2[,-c(findLinearCombos(RNA_data2)$remove)]
@@ -310,14 +313,106 @@ sort(apply(protein_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
 
 
 
-##ACP
-
+##ACP pour cytokynes
 
 ```{r}
-pca_cyto <- mixOmics::pca(cyto_data2)
+pca_cyto <- mixOmics::pca(cyto_data2,ncomp = 10) #nrmlmt option scale=TRUE mais tu as déjà scale plus haut
+plot(pca_cyto)
 
-mixOmics::plotIndiv(pca_cyto,comp=c(1,3))
-mixOmics::plotVar(pca_cyto)
+# Proportions cumulées de la variance pour décider combien de composantes conserver
+pca_cyto$cum.var
+
+#Pca en conservant que 5 composantes
+final.pca_cyto <- mixOmics::pca(cyto_data2, ncomp = 5, center = TRUE) 
+
+# Affichez la proportion de variance expliquée pour chaque composante
+final.pca_cyto$prop_expl_var$X
+
+# Affichez la variance totale
+final.pca_cyto$var.tot
+
+# Proportion cumulée de variance expliquée
+final.pca_cyto$cum.var
+
+
+mixOmics::plotIndiv(final.pca_cyto,
+                    comp = c(1, 3),   
+                    ind.names = TRUE) # Montrez les noms des échantillons
+
+# Voir la troisième composante
+mixOmics::plotIndiv(final.pca_cyto, style = '3d')
+
+#Ccorrelation circle plot
+mixOmics::plotVar(final.pca_cyto)
 ```
 
+## ACP pour protéines
+
+```{r}
+# Effectuer l'ACP sur les données protéine_data avec 10 composantes
+pca_protein <- mixOmics::pca(protein_data, ncomp = 10) 
+
+# Afficher le graphique de l'ACP
+plot(pca_protein)
+
+# Proportions cumulées de la variance pour décider combien de composantes conserver
+pca_protein$cum.var
+
+# ACP en conservant seulement 5 composantes
+final.pca_protein <- mixOmics::pca(protein_data, ncomp = 5, center = TRUE) 
+
+# Affichez la proportion de variance expliquée pour chaque composante
+final.pca_protein$prop_expl_var$X
+
+# Affichez la variance totale
+final.pca_protein$var.tot
+
+# Proportion cumulée de variance expliquée
+final.pca_protein$cum.var
+
+# Affichage des échantillons dans l'espace des composantes 1 et 2
+mixOmics::plotIndiv(final.pca_protein,
+                    comp = c(1, 2),   #A modifier
+                    ind.names = TRUE) # Montrez les noms des échantillons
+
+# Visualisation 3D pour voir la troisième composante
+mixOmics::plotIndiv(final.pca_protein, style = '3d')
+
+# Correlation circle plot pour les variables de proteine_data
+mixOmics::plotVar(final.pca_protein)
+```
+
+## ACP pour RNA
+
+```{r}
+# Réalisation de l'ACP pour les données RNA
+pca_rna <- mixOmics::pca(rna_data, ncomp = 10)
+plot(pca_rna)
+
+# Proportions cumulées de la variance pour décider combien de composantes conserver
+pca_rna$cum.var
+
+# Réalisation de l'ACP en conservant seulement 5 composantes pour les données RNA
+final.pca_rna <- mixOmics::pca(rna_data, ncomp = 5, center = TRUE) 
+
+# Affichage de la proportion de variance expliquée pour chaque composante
+final.pca_rna$prop_expl_var$X
+
+# Affichage de la variance totale
+final.pca_rna$var.tot
+
+# Proportion cumulée de variance expliquée
+final.pca_rna$cum.var
+
+# Visualisation des échantillons dans l'espace des composantes 1 et 3
+mixOmics::plotIndiv(final.pca_rna,
+                    comp = c(1, 3),   #A modifier
+                    ind.names = TRUE) # Montrez les noms des échantillons
+
+# Visualisation 3D des trois premières composantes
+mixOmics::plotIndiv(final.pca_rna, style = '3d')
+
+# Correlation circle plot pour les variables
+mixOmics::plotVar(final.pca_rna)
+```
 
