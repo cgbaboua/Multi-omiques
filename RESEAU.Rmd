@@ -1,0 +1,269 @@
+---
+title: "integration"
+output: html_document
+date: '2023-10-16'
+---
+
+```{r}
+load("Omiques_data.RData")
+gene_protein <- readRDS('gene_to_coding_protein.Rds')
+TF_to_targeted_gene <- readRDS("TF_to_targeted_gene.Rds")
+```
+
+
+
+## Réseaux de régulation de gène GRN 
+
+```{r}
+load('Omiques_data.RData')
+
+```
+
+
+
+
+```{r}
+grn <- netOmics::get_grn(RNA_data_logged)
+grn
+```
+
+
+
+```{r}
+ g <- igraph::graph_from_data_frame(get.data.frame(grn), directed=F)
+ plot.igraph(grn,  vertex.label = NA)
+```
+ 
+
+# number of vertices
+
+```{r}
+get_graph_stats(grn)
+```
+
+# number of edges
+
+```{r}
+ecount(grn) 
+```
+
+
+```{r}
+deg <- degree(grn)
+hist(deg)
+
+```
+
+geene le plus connecté
+
+```{r}
+which.max(deg)
+
+```
+
+# Vertex name
+# Noms des sommets / noeuds
+
+```{r}
+V(grn)$name
+genes <- V(grn)$name
+genes <- unlist(lapply(genes, function(x) sub("^RNA\\.", "", x)))
+```
+genes : noms des genes 
+
+
+```{r}
+df_vertex_grn <- as.data.frame(vertex_attr(graph = grn))
+df_vertex_grn
+```
+reseaux de gene : creer des liens
+
+
+
+graph from interaction database --> PPI
+On telecharge cette bdd
+filtrer proteines qui sont dans mon dataframe
+
+On prend notre reseaux de genes
+
+faire un filtre
+
+On merge nos trois dataframe : TF_to_targeted et gene_to_coding_prot
+
+
+
+
+```{r}
+
+gene_to_coding_prot <- readRDS('gene_to_coding_protein.Rds')
+gene_to_coding_prot
+```
+
+
+```{r}
+TF_to_targeted_gene <-readRDS('TF_to_targeted_gene.Rds')
+TF_to_targeted_gene
+```
+
+
+```{r}
+ppi <- readRDS('ppi.Rds')
+ppi
+```
+
+```{r}
+library(dplyr)
+
+proteines <- colnames(protein_data_scaled)
+proteines <- lapply(proteines, function(x) sub("^protein\\.", "", x))
+proteines = unlist(proteines)
+proteines
+```
+
+
+proteine :liste noms des proteines
+
+```{r}
+colnames(ppi)=c("from","to")
+```
+
+
+
+```{r}
+p <- get_interaction_from_database(X=proteines,db = ppi, type="PROT", user.ego = F)
+
+plot(p)
+
+```
+
+
+# number of vertices
+
+
+toutes nos reponses sont la (mais nombre de prot mauvais on est censé en avoir670
+```{r}
+get_graph_stats(p)
+```
+
+# number of edges
+
+```{r}
+ecount(p) 
+```
+
+
+```{r}
+deg <- degree(p)
+hist(deg)
+```
+
+# Vertex name
+# Noms des sommets / noeuds
+
+```{r}
+
+V(p)$name
+```
+
+
+
+
+```{r}
+prot_conn <- as.data.frame(vertex_attr(graph = p))
+prot_conn
+
+
+```
+
+```{r}
+deg <- degree(p)
+hist(deg)
+
+```
+
+```{r}
+deg[which.max(deg)]
+deg[which.min(deg)]
+```
+## CONNECTION GENE PROT
+
+
+interaction gene prot
+```{r}
+gene_to_coding_prot
+interaction.gene_prot <- dplyr::filter(gene_to_coding_prot, (ENSEMBL %in% genes & UNIPROT %in% proteines))
+colnames(interaction.gene_prot) <- c("from","to")
+```
+
+interaction tf gene
+
+```{r}
+TF_to_targeted_gene
+interaction.TF_gene <- dplyr::filter(TF_to_targeted_gene, (ENSEMBL %in% genes & UNIPROT %in% proteines))
+colnames(interaction.TF_gene) <- c("from","to")
+
+```
+PROBLEME : IL FAUT UN SEUL RESEAU AVEC LES DEUX TYPES DINTERACTION
+tf-gene
+
+```{r}
+merged_graph <- combine_layers(graph1= p , graph2 = g, interaction.TF_gene)
+plot(merged_graph, vertex.label = NA)
+V(merged_graph)$color <- ifelse(V(merged_graph)$name %in% V(g)$name, "blue", "red")
+vertex_attr(merged_graph) %>% as.data.frame()
+```
+
+gene prot
+
+
+```{r}
+merged_graph1 <- combine_layers(graph1= p , graph2 = g, interaction.gene_prot)
+plot(merged_graph1, vertex.label = NA)
+V(merged_graph1)$color <- ifelse(V(merged_graph1)$name %in% V(g)$name, "blue", "red") #gene bleu
+vertex_attr(merged_graph1) %>% as.data.frame()
+```
+
+
+
+modularité
+
+```{r}
+modularity <- walktrap.community(merged_graph)
+communities=membership(modularity)
+plot(merged_graph, mark.groups = communities,vertex.label=NA)
+
+```
+
+
+
+random walk 
+avant il faut determiner un seed (start)
+```{r}
+seeds <- head(V(merged_graph)$name[V(merged_graph)$type == "GO"])
+res_rwr <- random_walk(grn, start = "RNA.ENSG00000005249", steps = 5)
+res_rwr
+```
+
+
+
+
+enrichissement
+
+```{r}
+gostres <- gost(merged_graph, organism = "hsapiens")
+```
+
+
+```{r}
+enri <- gostplot(gostres, capped = FALSE, interactive = FALSE)
+enri
+```
+
+
+
+
+
+
+
+
+
