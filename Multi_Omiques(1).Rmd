@@ -1,45 +1,57 @@
 ---
-title: "Omique"
-author: "Inès"
-date: "2023-10-15"
+title: "Multi-omiques"
+author: "Cassandra"
+date: "2023-10-13"
 output: html_document
 ---
 
-#Purge de l'environnement
+## Purge de l'environnement
 ```{r}
 rm(list=ls())
 ```
 
-#Lecture des données
+## Lecture des données
 ```{r}
-data_pregnancy <- readRDS("C:/Users/Bismilah/Desktop/M1-IPFB/M2_BI/Omique _Antoine/Paris-diderot-m2-2023/data/data_pregnancy.Rds")
+#Chemin du repo Multi_omiques à changer selon l'user mais à ne pas supprimer 
+path <- "/Users/cassandragbaboua/M2_BI/Multi-omiques/"
+setwd(path)
+data_pregnancy <- readRDS(paste0(path,'data_pregnancy.Rds'))
 ```
 
-#Visualisation des données
+## Visualisation des données
 ```{r}
 head(data_pregnancy)
-```
-
-
-```{r}
 summary(data_pregnancy)
+str(data_pregnancy)
 ```
-
+## Dimensions des données
 ```{r}
+#Les dimensions du RNA_dataframe
 RNA_data <- data.frame(data_pregnancy['RNA'])
+sprintf('Les dimensions du RNA dataframe sont %s et %s', dim(RNA_data)[1],dim(RNA_data)[2])
+
+#Les dimensions du PROTEIN_dataframe
 protein_data <- data.frame(data_pregnancy['protein'])
+sprintf('Les dimensions du protein dataframe sont %s et %s', dim(protein_data)[1],dim(protein_data)[2])
+
+#Les dimensions du CYTO_dataframe
 cyto_data <- data.frame(data_pregnancy['cyto'])
+sprintf('Les dimensions du protein dataframe sont %s et %s', dim(cyto_data)[1],dim(cyto_data)[2])
+
+#Les dimensions du SAMPLE_dataframe
 sample_info <- data.frame(data_pregnancy['sample_info'])
+sprintf('Les dimensions du protein dataframe sont %s et %s', dim(sample_info)[1],dim(sample_info)[2])
 ```
 
-#Informations sur le nombre de sujets/echantillons et sur les différentes classes
-
+## Informations sur le nombre de sujets/echantillons et sur les différentes classes
 ```{r}
 nb_sujets = length(unique(sample_info$sample_info.sample))
 nb_classes = length(unique(sample_info$sample_info.Y))
 sprintf("Nombre d'id unique, donc, nombre de femmes intérogées : %s ",nb_sujets) 
 sprintf("Nombre de classes : %s ",nb_classes) 
 ```
+
+## Analyses préliminaires
 ```{r}
 boxplot(protein_data,las=2,cex.axis=0.8)
 boxplot(cyto_data,las=2,cex.axis=0.8)
@@ -47,56 +59,38 @@ boxplot(cyto_data,las=2,cex.axis=0.8)
 ```
 
 ```{r}
-apply(cyto_data,2,mean)
-apply(RNA_data,2,mean)
-apply(protein_data,2,mean)
+#Utilité ? 
+#apply(cyto_data,2,mean)
+#apply(RNA_data,2,mean)
+#apply(protein_data,2,mean)
 ```
 
 
-Preprocessing
-
-```{r}
-# Charger les bibliothèques
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(caret)
-library(mixOmics)
-library(netOmics)
-library(BiocGenerics)
-library(corrplot)
-library(igraph)
-library(gprofiler2)
-library(org.Hs.eg.db)
-# library(rgl)
-```
-
+## Preprocessing
 
 ```{r}
 # Extraction des informations des noms de lignes
-RNA_data <- RNA_data %>%
+RNA_data_1 <- RNA_data %>%
   rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
   separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
 ```
 
 ```{r}
 # Extraction des informations des noms de lignes
-protein_data <- protein_data %>%
+protein_data_1 <- protein_data %>%
   rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
   separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
 ```
 
 ```{r}
 # Extraction des informations des noms de lignes
-cyto_data <- cyto_data %>%
+cyto_data_1 <- cyto_data %>%
   rownames_to_column(var = "NomLigne") %>%  # Convertir les noms de lignes en colonne
   separate(NomLigne, into = c("Echantillon", "Classe"), sep = "_")  # Séparer le nom de ligne en trois colonnes
 ```
 
-
-
 ```{r}
-ggplot(RNA_data, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
+ggplot(RNA_data_1, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
   geom_bar(stat = "identity") +
   labs(title = "Barplot de la Feature en fonction des Individus",
        x = "Individu (Échantillon)",
@@ -106,7 +100,7 @@ ggplot(RNA_data, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
 
 
 ```{r}
-ggplot(RNA_data, aes(x = Classe , y = RNA.ENSG00000000003)) +
+ggplot(RNA_data_1, aes(x = Classe , y = RNA.ENSG00000000003)) +
   geom_bar(stat = "identity") +
   labs(title = "Barplot de la Feature en fonction des classes",
        x = "Individu (Échantillon)",
@@ -114,104 +108,128 @@ ggplot(RNA_data, aes(x = Classe , y = RNA.ENSG00000000003)) +
 
 ```
 
-POUR LES CYTOKINES
 
+## Traitement des données cytokines 
+
+Comme vu précédement on a une forte différence de variabilité des données. 
+On normalisera.
 
 ```{r}
-boxplot(cyto_data[-c(1,2)])
+#Filtration des gènes peu variants
+
+cyto_data <- cyto_data[,colSums(cyto_data) > 10]
+coef.var <- function(x){
+    c.var = sd(x)/mean(x)
+}
+coef.cyto <- as.numeric(lapply(cyto_data, coef.var))
+hist(coef.cyto)
 ```
-On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. On visualise à nouveau le boxplot sur les données normalisées ci-dessous. 
+
 ```{r}
-boxplot(scale(cyto_data[-c(1,2)]))
+cyto_data_filtered <- cyto_data[, abs(coef.cyto) > 0.5]
+```
+
+```{r}
+#Transformation des données 
+cyto_data_logged <- log(cyto_data_filtered)
+cyto_data_scaled <- data.frame(scale(cyto_data_filtered, center = TRUE, scale = TRUE))
+
+boxplot(cyto_data_logged)
+boxplot(cyto_data_scaled)
+```
+
+## Traitement des données protéiques 
+
+```{r}
+#Filtration des gènes peu variants
+
+protein_data <- protein_data[,colSums(protein_data) > 10]
+coef.protein <- as.numeric(lapply(protein_data, coef.var))
+hist(coef.protein)
+```
+
+```{r}
+protein_data_filtered <- protein_data[, abs(coef.protein) > 0]
+```
+
+```{r}
+#Transformation des données 
+protein_data_logged <- log(protein_data_filtered)
+protein_data_scaled <- data.frame(scale(protein_data_filtered, center = TRUE, scale = TRUE))
+
+boxplot(protein_data_logged)
+boxplot(protein_data_scaled)
 ```
 
 
-
-Recherche des variables à variance nulle
+## Traitement des données RNA
 
 ```{r}
+#Filtration des gènes peu variants
+RNA_data <- RNA_data[,colSums(RNA_data) > 10]
+coef.RNA <- as.numeric(lapply(RNA_data, coef.var))
+hist(coef.RNA)
+```
+```{r}
+RNA_data_filtered <- RNA_data[, abs(coef.RNA) > 1]
+```
+
+
+```{r}
+#Transformation des données 
+
+#RNA_data_logged <- log(RNA_data_filtered)
+RNA_data_scaled <- data.frame(scale(RNA_data_filtered, center = TRUE, scale = TRUE))
+boxplot(RNA_data_scaled)
+```
+# POUR LES CYTO
+
+```{r}
+#Variables à variance nulle 
 apply(cyto_data, FUN=var, MARGIN = 2)
-
-```
-pas de variance nulle
-
-
-
-```{r}
-cyto_data2 = data.frame(scale(cyto_data[-c(1,2)]))
 ```
 
 
-Corrélations
-
+## Corrélations
 
 ```{r}
-corr=cor(cyto_data2)
+corr=cor(cyto_data_scaled)
 corrplot::corrplot(corr)
 ```
-
-
 
 ```{r}
 findCorrelation(corr, cutoff = 0.90, names=T)
 del<-findCorrelation(corr, cutoff = 0.90, names=T)
-cyto_data2<- cyto_data2 %>% select(-one_of(del))
+cyto_data_scaled <- cyto_data_scaled %>% dplyr::select(-one_of(del))
 ```
 
 
-Colinéarité
+## Colinéarité
 
 ```{r}
-findLinearCombos(cyto_data2[-c(1,2)])
+findLinearCombos(cyto_data_scaled[-c(1,2)])
 ```
 PAS DE COLINEARITÉ
 
 
 
-POUR LES PROTEINES
+# POUR LES PROTEINES
 
-^
-```{r}
-boxplot(protein_data[-c(1,2)])
-```
-On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. On visualise à nouveau le boxplot sur les données normalisées ci-dessous. 
-```{r}
-boxplot(scale(protein_data[-c(1,2)]))
-```
+On remarque une forte différence de variabilité des données sur ce boxplot. Il y a donc la nécessité de normaliser les données. 
 
 
-
-Recherche des variables à variance nulle
+## Corrélations
 
 ```{r}
-which(apply(protein_data, FUN=var, MARGIN = 2)==0)
-
-```
-pas de variance nulle
-
-
-
-
-
-```{r}
-protein_data2 = data.frame(scale(protein_data[-c(1,2)]))
-```
-
-
-Corrélations
-
-
-```{r}
-corr=cor(protein_data2)
+corr=cor(protein_data_scaled)
 #corrplot::corrplot(corr)
 ```
-
 
 
 ```{r}
 findCorrelation(corr, cutoff = 0.90, names=T)
 del<-findCorrelation(corr, cutoff = 0.90, names=T)
-protein_data2<- protein_data2 %>% select(-one_of(del))
+protein_data_scaled<- protein_data_scaled %>% dplyr::select(-one_of(del))
 ```
 
 
@@ -650,61 +668,4 @@ plotLoadings(C, ncomp = 1)
 ```{r}
 circosPlot(result.sparse.diablo,cutoff = 0.5, style = 'graphics')
 ```
-
-
-
-
-## Réseaux de régulation de gène GRN 
-
-
-```{r}
-g <- igraph::graph_from_data_frame(RNA_data)
-plot(g)
-```
-```{r}
-RNA_data <- data.frame(RNA_data)
-```
-
-```{r}
-grn <- netOmics::get_grn(RNA_data$raw$RNA)
-```
-
-
-# number of vertices
-
-```{r}
-vcount(g)
-```
-
-# number of edges
-```{r}
-ecount(g) 
-```
-
-
-```{r}
-deg <- degree(g)
-hist(deg)
-```
-
-# Vertex name
-
-```{r}
-V(g)$name
-```
-
-
-```{r}
-
-```
-
-
-```{r}
-
-```
-
-
-
-
-
 
