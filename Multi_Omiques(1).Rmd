@@ -233,21 +233,18 @@ protein_data_scaled<- protein_data_scaled %>% dplyr::select(-one_of(del))
 ```
 
 
-Colinéarité
+## Colinéarité
 
 ```{r}
-protein_data2<- protein_data2[,-c(findLinearCombos(protein_data2)$remove)]
+protein_data_scaled<- protein_data_scaled[,-c(findLinearCombos(protein_data_scaled)$remove)]
 ```
 
 il nous reste 64 protéines au final
 
 
+# POUR LES ARN -- a revoir
 
 
-
-POUR LES ARN
-
-^
 ```{r}
 #boxplot(RNA_data[-c(1,2)])
 ```
@@ -255,8 +252,6 @@ POUR LES ARN
 ```{r}
 #boxplot(scale(RNA_data[-c(1,2)]))
 ```
-
-
 
 Recherche des variables à variance nulle
 
@@ -272,15 +267,12 @@ RNA_data2 = data.frame(scale(RNA_data[-c(1,2)]))
 ```
 
 
-Corrélations
-
+## Corrélations
 
 ```{r}
 corr=cor(RNA_data2)
 #corrplot::corrplot(corr)
 ```
-
-
 
 ```{r}
 del<-findCorrelation(corr, cutoff = 0.90, names=T)
@@ -297,17 +289,12 @@ RNA_data2<- RNA_data2[,-c(findLinearCombos(RNA_data2)$remove)]
 il nous reste 60 ARN au final
 
 
-
 Quels sont les gènes les plus variants ? les protéines ? Quels sont leurs rôles biologiques ?
-
-
-
 
 ```{r}
 RNA_data_filtered<- RNA_data %>% select(one_of(colnames(RNA_data2)))
 
 ```
-
 
 ```{r}
 
@@ -316,13 +303,11 @@ sort(apply(RNA_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
 lE GENE LE PLUS VARIANT EST RNA.ENSG00000107372
 C'est le gène ZFAND5 :  Predicted to enable DNA binding activity and zinc ion binding activity. Predicted to act upstream of or within several processes, including face development; fibroblast migration; and platelet-derived growth factor receptor signaling pathway. Predicted to be located in cytoplasm. 
 
-
 ```{r}
 protein_data_filtered<- protein_data %>% select(one_of(colnames(protein_data2)))
 cyto_data_filtered<- cyto_data %>% select(one_of(colnames(cyto_data2)))
 
 ```
-
 
 ```{r}
 
@@ -332,7 +317,7 @@ sort(apply(protein_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
 
 
 
-##ACP pour cytokynes
+## ACP pour cytokynes
 
 ```{r}
 pca_cyto <- mixOmics::pca(cyto_data_filtered,ncomp = 10,scale=TRUE) #nrmlmt option scale=TRUE mais tu as déjà scale plus haut
@@ -667,5 +652,58 @@ plotLoadings(C, ncomp = 1)
 ```
 ```{r}
 circosPlot(result.sparse.diablo,cutoff = 0.5, style = 'graphics')
+```
+
+
+
+## Réseaux de régulation de gène GRN 
+
+
+```{r}
+ g <- igraph::graph_from_data_frame(RNA_data)
+ plot(g)
+```
+ 
+```{r}
+ RNA_data <- data.frame(RNA_data)
+```
+
+```{r}
+ grn <- netOmics::get_grn(RNA_data$raw$RNA)
+```
+
+
+# number of vertices
+
+```{r}
+ vcount(g)
+```
+
+# number of edges
+
+```{r}
+ecount(g) 
+```
+
+
+```{r}
+deg <- degree(g)
+hist(deg)
+```
+
+# Vertex name
+
+```{r}
+V(g)$name
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
 ```
 
