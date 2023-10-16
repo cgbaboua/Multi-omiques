@@ -210,7 +210,8 @@ save(RNA_data_logged,protein_data_scaled,cyto_data_scaled,sample_info,Classes,fi
 ```
 
 proteine A8K6G4 : cDNA 
--------------------------------------------
+
+# ---------------------- ANALYSE EN COMPOSANTES PRINCIPALES--------------------- #
 
 ## ACP pour cytokynes
 
@@ -412,4 +413,45 @@ selectVar(spca_RNA, comp  =2)$name
 ```
 
 
+# --------------------------- ANALYSE SUPERVISEE ------------------------------ #
 
+## PLSDA
+
+
+# Pour les cytokines
+```{r}
+X <- cyto_data_scaled
+Y <- cyto_data$Classe
+```
+
+```{r}
+plsda_cyto <- plsda(X, Y) 
+plotIndiv(plsda_cyto) 
+plotVar(plsda_cyto,cex=3) 
+```
+
+# Pour les proteines 
+
+```{r}
+X <- protein_data_scaled
+Y <- protein_data$Classe
+```
+
+```{r}
+plsda_protein <- plsda(X, Y)
+plotIndiv(plsda_protein) 
+plotVar(plsda_protein,cex=3) 
+```
+
+# Pour les RNA
+
+```{r}
+X <- RNA_data_logged
+Y <- RNA_data$Classe
+```
+
+```{r}
+plsda_RNA <- plsda(X, Y)
+plotIndiv(plsda_RNA) 
+plotVar(plsda_RNA,cex=3) 
+```
