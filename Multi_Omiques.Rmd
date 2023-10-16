@@ -325,10 +325,10 @@ nselect1 <- 10  # Nombre de features à sélectionner sur la première composant
 nselect2 <- 5   # Nombre de features à sélectionner sur la deuxième composante
 
 # Effectuer une analyse sPCA
-spca_cyto <- spca(cyto_data_filtered,scale=T, keepX = c(nselect1,nselect2))
+spca_cyto <- spca(cyto_data_scaled, keepX = c(nselect1,nselect2))
 
 plotVar(spca_cyto,cex=3)
-plotIndiv(spca_cyto,cex=3, group=cyto_data_1$Classe)
+plotIndiv(spca_cyto,cex=3, group=cyto_class$Classe)
 
 ```
 
@@ -356,11 +356,11 @@ nselect1 <- 10  # Nombre de features à sélectionner sur la première composant
 nselect2 <- 5   # Nombre de features à sélectionner sur la deuxième composante
 
 # Effectuer une analyse sPCA
-spca_protein <- spca(protein_data_filtered, scale=T, keepX = c(nselect1,nselect2))
+spca_protein <- spca(protein_data_scaled, keepX = c(nselect1,nselect2))
 
 plotVar(spca_protein,cex=3)
 
-plotIndiv(spca_protein,cex=3, group=cyto_data_1$Classe)
+plotIndiv(spca_protein,cex=3, group=protein_class$Classe)
 
 ```
 
@@ -390,10 +390,11 @@ nselect1 <- 10  # Nombre de features à sélectionner sur la première composant
 nselect2 <- 5   # Nombre de features à sélectionner sur la deuxième composante
 
 # Effectuer une analyse sPCA
-spca_RNA <- spca(RNA_data_filtered,scale=T, keepX = c(nselect1,nselect2))
+spca_RNA <- spca(RNA_data_logged,scale=T, keepX = c(nselect1,nselect2))
+
 plotVar(spca_RNA,cex=3)
 
-plotIndiv(spca_RNA,cex=3, group=cyto_data_1$Classe)
+plotIndiv(spca_RNA,cex=3, group=RNA_class$Classe)
 ```
 
 sur la première composante 
