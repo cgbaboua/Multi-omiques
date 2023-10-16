@@ -5,6 +5,10 @@ date: "2023-10-13"
 output: html_document
 ---
 
+## Purge de l'environnement
+```{r}
+rm(list=ls())
+```
 
 ```{r}
 # Charger les bibliothèques
@@ -22,16 +26,10 @@ library(org.Hs.eg.db)
 library(rgl)
 ```
 
-
-## Purge de l'environnement
-```{r}
-rm(list=ls())
-```
-
 ## Lecture des données
 ```{r}
 #Chemin du repo Multi_omiques à changer selon l'user mais à ne pas supprimer 
-path <- "/home/etudiant/Téléchargements"
+path <- '/Users/cassandragbaboua/M2_BI/Multi-omiques/'
 setwd(path)
 data_pregnancy <- readRDS('data_pregnancy.Rds')
 ```
@@ -108,7 +106,7 @@ cyto_class <- cyto_data %>%
 ```
 
 ```{r}
-ggplot(RNA_data_1, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
+ggplot(RNA_class, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
   geom_bar(stat = "identity") +
   labs(title = "Barplot de la Feature en fonction des Individus",
        x = "Individu (Échantillon)",
@@ -118,7 +116,7 @@ ggplot(RNA_data_1, aes(x = Echantillon , y = RNA.ENSG00000000003)) +
 
 
 ```{r}
-ggplot(RNA_data_1, aes(x = Classe , y = RNA.ENSG00000000003)) +
+ggplot(RNA_class, aes(x = Classe , y = RNA.ENSG00000000003)) +
   geom_bar(stat = "identity") +
   labs(title = "Barplot de la Feature en fonction des classes",
        x = "Individu (Échantillon)",
@@ -133,8 +131,7 @@ Comme vu précédement on a une forte différence de variabilité des données.
 On normalisera.
 
 ```{r}
-#Filtration des gènes peu variants
-
+#Filtration des gènes peu variants 
 cyto_data <- cyto_data[,colSums(cyto_data) > 10]
 coef.var <- function(x){
     c.var = sd(x)/mean(x)
@@ -156,14 +153,10 @@ boxplot(cyto_data_scaled)
 
 ```{r}
 #Filtration des gènes peu variants
+variances <- apply(protein_data, MARGIN = 2, var)
+plot(variances,ylim=c(0,1.0e+6))
+protein_data_filtered <- protein_data[, variances > 1.0e+6 ]
 
-#protein_data <- protein_data[,colSums(protein_data) > 10]
-coef.protein <-  as.numeric(lapply(protein_data, var))
-hist(coef.protein)
-```
-
-```{r}
-protein_data_filtered <- protein_data[, abs(coef.protein) > 10]
 ```
 
 ```{r}
@@ -180,42 +173,40 @@ boxplot(protein_data_scaled)
 
 ```{r}
 #Filtration des gènes peu variants
-RNA_data <- RNA_data +1
-RNA_data <- RNA_data[,colSums(RNA_data) > 10]
-coef.RNA <- as.numeric(lapply(RNA_data, coef.var))
-hist(coef.RNA)
-```
-```{r}
-RNA_data_filtered <- RNA_data[, abs(coef.RNA) > 3]
+RNA_data <- RNA_data+1
+variances <- as.numeric(apply(RNA_data, MARGIN = 2, var))
+plot(variances,ylim=c(0,10))
+RNA_data_filtered <- RNA_data[, variances > 10000]
 ```
 
 
 ```{r}
 #Transformation des données 
 
-#RNA_data_logged <- log(RNA_data_filtered)
+RNA_data_logged <- log(RNA_data_filtered)
 RNA_data_scaled <- data.frame(scale(RNA_data_filtered, center = TRUE, scale = TRUE))
 boxplot(RNA_data_scaled)
+boxplot(RNA_data_logged)
 
 ```
-
-
-
-
 
 Quels sont les gènes les plus variants ? les protéines ? Quels sont leurs rôles biologiques ?
 
 ```{r}
-
 sort(apply(RNA_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
 ```
 lE GENE LE PLUS VARIANT EST RNA.ENSG00000107372
 C'est le gène GID8 :  Predicted to enable protein homodimerization activity. Involved in positive regulation of canonical Wnt signaling pathway and positive regulation of cell population proliferation. 
 
 ```{r}
-
 sort(apply(protein_data_filtered, FUN=var, MARGIN = 2),decreasing=T)
 
+```
+
+On choisit de conserver :
+```{r}
+#Logged pour ARN, Scaled pour le reste 
+save(RNA_data_logged,protein_data_scaled,cyto_data_scaled,sample_info,Classes,file="Omiques_data.RData")
 ```
 
 proteine A8K6G4 : cDNA 
@@ -224,14 +215,14 @@ proteine A8K6G4 : cDNA
 ## ACP pour cytokynes
 
 ```{r}
-pca_cyto <- mixOmics::pca(cyto_data_filtered,ncomp = 10,scale=TRUE) #nrmlmt option scale=TRUE mais tu as déjà scale plus haut
+pca_cyto <- mixOmics::pca(cyto_data_scaled,ncomp = 10,scale=TRUE) 
 plot(pca_cyto)
 
 # Proportions cumulées de la variance pour décider combien de composantes conserver
 pca_cyto$cum.var
 
 #Pca en conservant que 5 composantes
-final.pca_cyto <- mixOmics::pca(cyto_data_filtered, ncomp = 5, center = TRUE, scale=TRUE) 
+final.pca_cyto <- mixOmics::pca(cyto_data_scaled, ncomp = 5, center = TRUE, scale=TRUE) 
 
 # Affichez la proportion de variance expliquée pour chaque composante
 final.pca_cyto$prop_expl_var$X
@@ -258,7 +249,7 @@ mixOmics::plotVar(final.pca_cyto,cex=3)
 
 ```{r}
 # Effectuer l'ACP sur les données protéine_data avec 10 composantes
-pca_protein <- mixOmics::pca(protein_data_filtered, ncomp = 10,scale=T) 
+pca_protein <- mixOmics::pca(protein_data_scaled, ncomp = 10,scale=T) 
 
 # Afficher le graphique de l'ACP
 plot(pca_protein)
@@ -267,7 +258,7 @@ plot(pca_protein)
 pca_protein$cum.var
 
 # ACP en conservant seulement 5 composantes
-final.pca_protein <- mixOmics::pca(protein_data_filtered, ncomp = 5, center = TRUE,scale=T) 
+final.pca_protein <- mixOmics::pca(protein_data_scaled, ncomp = 5, center = TRUE,scale=T) 
 
 # Affichez la proportion de variance expliquée pour chaque composante
 final.pca_protein$prop_expl_var$X
@@ -280,8 +271,8 @@ final.pca_protein$cum.var
 
 # Affichage des échantillons dans l'espace des composantes 1 et 2
 mixOmics::plotIndiv(final.pca_protein,
-                    comp = c(1, 2),   #A modifier
-                    ind.names = TRUE,cex=3, group=cyto_data_1$Classe) # Montrez les noms des échantillons
+                    comp = c(1, 2),   
+                    ind.names = TRUE,cex=3, group=cyto_class$Classe) # Montrez les noms des échantillons
 
 # Visualisation 3D pour voir la troisième composante
 mixOmics::plotIndiv(final.pca_protein, style = '3d')
@@ -294,14 +285,14 @@ mixOmics::plotVar(final.pca_protein,cex=3)
 
 ```{r}
 # Réalisation de l'ACP pour les données RNA
-pca_rna <- mixOmics::pca(RNA_data_filtered, ncomp = 10, scale=T)
+pca_rna <- mixOmics::pca(RNA_data_logged, ncomp = 10, scale=T)
 plot(pca_rna)
 
 # Proportions cumulées de la variance pour décider combien de composantes conserver
 pca_rna$cum.var
 
 # Réalisation de l'ACP en conservant seulement 5 composantes pour les données RNA
-final.pca_rna <- mixOmics::pca(RNA_data_filtered, ncomp = 5, center = TRUE, scale=T) 
+final.pca_rna <- mixOmics::pca(RNA_data_logged, ncomp = 5, center = TRUE, scale=T) 
 
 # Affichage de la proportion de variance expliquée pour chaque composante
 final.pca_rna$prop_expl_var$X
@@ -312,10 +303,10 @@ final.pca_rna$var.tot
 # Proportion cumulée de variance expliquée
 final.pca_rna$cum.var
 
-# Visualisation des échantillons dans l'espace des composantes 1 et 3
+# Visualisation des échantillons dans l'espace des composantes 1 et 2
 mixOmics::plotIndiv(final.pca_rna,
-                    comp = c(1, 2),   #A modifier
-                    ind.names = TRUE,cex=3, group=cyto_data_1$Classe) # Montrez les noms des échantillons
+                    comp = c(1, 2),  
+                    ind.names = TRUE,cex=3, group=RNA_class$Classe) # Montrez les noms des échantillons
 
 # Visualisation 3D des trois premières composantes
 mixOmics::plotIndiv(final.pca_rna, style = '3d')
@@ -323,12 +314,11 @@ mixOmics::plotIndiv(final.pca_rna, style = '3d')
 # Correlation circle plot pour les variables
 mixOmics::plotVar(final.pca_rna,cex=3)
 ```
-
+Nous choissisons 
 
 ##SPCA sur cytokines
 
 ```{r}
-
 
 # Définir les paramètres sPCA
 nselect1 <- 10  # Nombre de features à sélectionner sur la première composante
