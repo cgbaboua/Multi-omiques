@@ -314,7 +314,7 @@ mixOmics::plotIndiv(final.pca_rna, style = '3d')
 # Correlation circle plot pour les variables
 mixOmics::plotVar(final.pca_rna,cex=3)
 ```
-Nous choissisons 
+Nous choissisons toujours deux composantes car, c'est ce qui montre le mieux la dissociation des individus. 
 
 ##SPCA sur cytokines
 
@@ -351,7 +351,6 @@ selectVar(spca_cyto, comp  =2)$name
 ##SPCA sur proteines
 
 ```{r}
-
 
 # Définir les paramètres sPCA
 nselect1 <- 10  # Nombre de features à sélectionner sur la première composante
