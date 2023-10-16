@@ -1,0 +1,66 @@
+---
+title: "Integration_diablo"
+author: "Cassandra,Ines,Manel,Feriel"
+date: "2023-10-16"
+output: html_document
+---
+# Purge de l'environnement
+```{r}
+rm(list=ls())
+```
+
+# Charger les bibliothèques
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(mixOmics)
+library(netOmics)
+library(BiocGenerics)
+library(corrplot)
+library(igraph)
+library(gprofiler2)
+library(org.Hs.eg.db)
+library(rgl)
+library(clusterProfiler)
+library(biomaRt)
+```
+
+```{r}
+load("Omiques_data.RData")
+```
+
+# ---------------------------- ANALYSE D'INTEGRATION -------------------------- #
+
+## DIABLO
+
+
+```{r}
+X <- list(rna = X1, protein = X2, cyto= X3)
+Y <- Classes
+```
+
+```{r}
+result.diablo <- block.plsda(X, Y) # run the method
+plotIndiv(result.diablo) # plot the samples
+plotVar(result.diablo)
+```
+
+```{r}
+list.keepX = list(rna = c(15, 10), protein = c(15,5), cyto = c(15, 5)) 
+result.sparse.diablo <- block.splsda(X, Y,keepX=list.keepX , ncomp=2) # run the method
+plotIndiv(result.sparse.diablo) # plot the samples
+plotVar(result.sparse.diablo,cex=c(3,3,3))
+```
+
+```{r}
+plotLoadings(C, ncomp = 1) 
+```
+
+```{r}
+circosPlot(result.sparse.diablo,cutoff = 0.5, style = 'graphics')
+```
+
+
+

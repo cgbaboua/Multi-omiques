@@ -1,0 +1,156 @@
+---
+title: "Integration_RNA_Cyto"
+author: "Cassandra,Ines,Manel,Feriel"
+date: "2023-10-16"
+output: html_document
+---
+
+# Purge de l'environnement
+```{r}
+rm(list=ls())
+```
+
+# Charger les bibliothèques
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(mixOmics)
+library(netOmics)
+library(BiocGenerics)
+library(corrplot)
+library(igraph)
+library(gprofiler2)
+library(org.Hs.eg.db)
+library(rgl)
+library(clusterProfiler)
+library(biomaRt)
+```
+
+```{r}
+load("Omiques_data.RData")
+```
+
+# ---------------------------- ANALYSE D'INTEGRATION -------------------------- #
+
+## PLS pour Cyto VS RNA
+
+```{r}
+X1 <- RNA_data_logged
+X2 <- protein_data_scaled
+X3 <- cyto_data_scaled
+```
+
+# Realisation de l'analyse PLS
+```{r}
+pls.results <- pls(X = X1, Y = X3) #ncomp par defaut -> 2
+pls.results
+```
+
+```{r}
+#Graphe des echantillons (score plot)
+plotIndiv(pls.results,title="Graphe des echantillons")
+#Graphe des variables (loading plot)
+plotVar(pls.results, cex=c(3,3),title="Graphe des variables")
+plotArrow(pls.results)
+```
+
+#sPLS
+```{r}
+# Analyse sPLS avec spécification du nombre de features pour chaque composante
+
+keepX <- c(10, 5)  # 10 features pour la composante 1, 5 pour la composante 2
+keepY <- c(10, 5) 
+
+spls.results <- mixOmics::spls(X1, X3, ncomp = 2, keepX = keepX, keepY = keepY)
+spls.results
+```
+
+```{r}
+plotIndiv(spls.results)
+plotVar(spls.results)
+plotArrow(spls.results)
+```
+
+# Variables selectionées chez les genes
+```{r}
+# Variables sélectionnées pour X1 (gènes)
+selectVar(spls.results,comp=1)$X
+selectVar(spls.results,comp=2)$X
+
+gene_id_1<- selectVar(spls.results,comp=1)$X$name
+gene_id_2<- selectVar(spls.results,comp=2)$X$name
+
+gene_id <- c(gene_id_1,gene_id_2)
+gene_id <- gsub('RNA.','',gene_id)
+```
+
+# Determination des rôles biologiques
+```{r}
+# Sélectionner le mart et le dataset
+mart <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+
+```
+
+```{r}
+# Récupération des fonctions biologiques pour les gènes
+gene_functions <- getBM(attributes = c("ensembl_gene_id", "go_id", "name_1006"), 
+                        filters = "ensembl_gene_id", 
+                        values = gene_id, 
+                        mart = mart)
+# Afficher les résultats
+print(gene_functions)
+```
+
+
+#Enrichissement chez les ARN
+```{r}
+gostres_1 <- gost(query = gene_id, organism = "hsapiens")
+print(gostres_1$result)
+```
+
+# Visualisation des résultats 
+```{r}
+p_1 <- gostplot(gostres_1, capped = FALSE, interactive = FALSE)
+p_1
+```
+
+# Variables selectionnées chez les cyto
+```{r}
+selectVar(spls.results,comp=1)$Y
+selectVar(spls.results,comp=2)$Y
+
+cyto_id_1<- selectVar(spls.results,comp=1)$Y$name
+cyto_id_2<- selectVar(spls.results,comp=2)$Y$name
+
+cyto_id <- c(cyto_id_1,cyto_id_2)
+cyto_id <- gsub('cyto.','',cyto_id)
+```
+
+# Determination des rôles biologiques
+```{r}
+# Obtenir les identifiants Entrez Gene pour ces noms
+entrez_ids <- mapIds(org.Hs.eg.db, keys = cyto_id, column = "ENTREZID", keytype = "SYMBOL", nomatch = NA)
+
+# Utilisez ces identifiants Entrez Gene pour obtenir des descriptions
+cyto_descriptions <- mapIds(org.Hs.eg.db, keys = entrez_ids, column = "GENENAME", keytype = "ENTREZID", nomatch = NA)
+
+# Créer une liste nommée avec les noms des cyto en tant que noms et les descriptions en tant que valeurs
+result <- setNames(cyto_descriptions, cyto_id)
+
+print(result)
+```
+
+# Enrichissement chez les cyto
+```{r}
+gostres <- gost(query = cyto_id, organism = "hsapiens")
+head(gostres$result)
+```
+
+# Visualisation des résultats 
+```{r}
+p <- gostplot(gostres, capped = FALSE, interactive = FALSE)
+p
+```
+

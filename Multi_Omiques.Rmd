@@ -1,6 +1,6 @@
 ---
 title: "Multi-omiques"
-author: "Cassandra"
+author: "Cassandra,Manel,Ines,Feriel"
 date: "2023-10-13"
 output: html_document
 ---
@@ -10,8 +10,8 @@ output: html_document
 rm(list=ls())
 ```
 
-```{r}
 # Charger les bibliothèques
+```{r}
 library(ggplot2)
 library(dplyr)
 library(tidyr)

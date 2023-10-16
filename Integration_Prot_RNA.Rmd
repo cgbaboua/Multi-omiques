@@ -1,0 +1,145 @@
+---
+title: "integration"
+output: html_document
+date: '2023-10-16'
+---
+# Purge de l'environnement
+```{r}
+rm(list=ls())
+```
+
+# Charger les bibliothèques
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(mixOmics)
+library(netOmics)
+library(BiocGenerics)
+library(corrplot)
+library(igraph)
+library(gprofiler2)
+library(org.Hs.eg.db)
+library(rgl)
+library(clusterProfiler)
+library(biomaRt)
+```
+
+```{r}
+load("Omiques_data.RData")
+```
+
+# ---------------------------- ANALYSE D'INTEGRATION -------------------------- #
+
+## PLS pour Prot VS RNA
+
+```{r}
+X1 <- RNA_data_logged
+X2 <- protein_data_scaled
+X3 <- cyto_data_scaled
+```
+
+# Realisation de l'analyse PLS
+```{r}
+pls.results <- pls(X = X1, Y = X2) #ncomp par defaut -> 2
+pls.results
+```
+
+```{r}
+#Graphe des echantillons (score plot)
+plotIndiv(pls.results,title="Graphe des echantillons")
+#Graphe des variables (loading plot)
+plotVar(pls.results, cex=c(3,3),title="Graphe des variables")
+plotArrow(pls.results)
+```
+
+#sPLS
+```{r}
+# Analyse sPLS avec spécification du nombre de features pour chaque composante
+
+keepX <- c(10, 5)  # 10 features pour la composante 1, 5 pour la composante 2
+keepY <- c(10, 5) 
+
+spls.results <- mixOmics::spls(X1, X2, ncomp = 2, keepX = keepX, keepY = keepY)
+spls.results
+```
+
+```{r}
+plotIndiv(spls.results)
+plotVar(spls.results)
+plotArrow(spls.results)
+```
+
+# Variables selectionées chez les genes
+```{r}
+# Variables sélectionnées pour X1 (gènes)
+selectVar(spls.results,comp=1)$X
+selectVar(spls.results,comp=2)$X
+
+gene_id_1<- selectVar(spls.results,comp=1)$X$name
+gene_id_2<- selectVar(spls.results,comp=2)$X$name
+
+gene_id <- c(gene_id_1,gene_id_2)
+gene_id <- gsub('RNA.','',gene_id)
+```
+# Determination des rôles biologiques
+
+```{r}
+# Récupération des fonctions biologiques pour les gènes
+gene_functions <- getBM(attributes = c("ensembl_gene_id", "go_id", "name_1006"), 
+                        filters = "ensembl_gene_id", 
+                        values = gene_id, 
+                        mart = mart)
+# Afficher les résultats
+head(gene_functions)
+```
+
+#Enrichissement chez les ARN
+```{r}
+gostres_1 <- gost(query = gene_id, organism = "hsapiens")
+print(gostres_1$result)
+```
+# Visualisation des résultats 
+```{r}
+p_1 <- gostplot(gostres_1, capped = FALSE, interactive = FALSE)
+p_1
+```
+
+# Variables selectionnées chez les prot
+```{r}
+selectVar(spls.results,comp=1)$Y
+selectVar(spls.results,comp=2)$Y
+
+prot_id_1<- selectVar(spls.results,comp=1)$Y$name
+prot_id_2<- selectVar(spls.results,comp=2)$Y$name
+
+prot_id <- c(prot_id_1,prot_id_2)
+prot_id <- gsub('protein.','',prot_id)
+```
+
+# Determination des rôles biologiques
+```{r}
+# Récupération des fonctions biologiques pour les proteines
+protein_functions <- getBM(attributes = c("uniprotswissprot", "go_id", "name_1006"), 
+                           filters = "uniprotswissprot", 
+                           values = prot_id, 
+                           mart = mart)
+
+# Afficher les résultats
+print(protein_functions)
+```
+
+# Enrichissement chez les prot
+```{r}
+gostres <- gost(query = prot_id, organism = "hsapiens")
+head(gostres$result)
+```
+
+# Visualisation des résultats 
+```{r}
+p <- gostplot(gostres, capped = FALSE, interactive = FALSE)
+p
+```
+
+
