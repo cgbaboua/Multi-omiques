@@ -1,0 +1,10 @@
+---
+title: "integration"
+output: html_document
+date: '2023-10-16'
+---
+
+```{r}
+load("Omiques_data.RData")
+```
+
