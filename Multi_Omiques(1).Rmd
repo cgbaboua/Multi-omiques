@@ -567,7 +567,7 @@ plotVar(plsda_RNA,cex=3)
 ```
 
 
-###ANALYSE D'INTEGRATION
+### ANALYSE D'INTEGRATION
 
 ## PLS
 
